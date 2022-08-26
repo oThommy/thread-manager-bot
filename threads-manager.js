@@ -23,6 +23,10 @@ const keepThreadsAlive = async (client) => {
         if (thread.autoArchiveDuration < 1440) {
             await thread.setAutoArchiveDuration(1440, 'Longer auto archiving results in less usage of the bot\'s resources').catch(errorHandler);
         }
+        const message = await thread.send(`Keeping thread alive!`);
+        setTimeout(() => {
+            message.delete();
+        }, 1000);
 
         return [...await acc, threadId];
     }, []);
