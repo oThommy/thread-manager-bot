@@ -3,6 +3,21 @@ const { PATH_THREADS_LIST, THREADS_LIST_DEFAULT_CONTENTS } = require('./config.j
 const { readDatabase, updateDatabase } = require('./json-database-util.js');
 const errorHandler = require('./error-handler.js');
 
+const reviveThread = async (thread) => {
+	if (thread.archived) {
+		await thread.setArchived(false, 'keeping the thread alive').catch(errorHandler);
+	}
+	if (thread.autoArchiveDuration < 1440) {
+		await thread.setAutoArchiveDuration(1440, 'Longer auto archiving results in less usage of the bot\'s resources').catch(errorHandler);
+	}
+	const message = await thread.send(`Keeping thread alive!`);
+	setTimeout(() => {
+		message.delete();
+	}, 1000);
+
+	return console.log(`${new Date().toLocaleString()}		revived ${thread.name}`);
+};
+
 const keepThreadsAlive = async (client) => {
     let threads = await readDatabase(path.join(__dirname, PATH_THREADS_LIST), THREADS_LIST_DEFAULT_CONTENTS);
     let updateFlag = false;
@@ -17,16 +32,7 @@ const keepThreadsAlive = async (client) => {
             return await acc;
         }
 
-        if (thread.archived) {
-            await thread.setArchived(false, 'keeping the thread alive').catch(errorHandler);
-        }
-        if (thread.autoArchiveDuration < 1440) {
-            await thread.setAutoArchiveDuration(1440, 'Longer auto archiving results in less usage of the bot\'s resources').catch(errorHandler);
-        }
-        const message = await thread.send(`Keeping thread alive!`);
-        setTimeout(() => {
-            message.delete();
-        }, 1000);
+		await reviveThread(thread);
 
         return [...await acc, threadId];
     }, []);
@@ -39,12 +45,7 @@ const threadUpdateListener = (client) => {
     client.on('threadUpdate', async (temp, newThread) => {
         const threads = await readDatabase(path.join(__dirname, PATH_THREADS_LIST), THREADS_LIST_DEFAULT_CONTENTS).catch(errorHandler);
         if (!threads?.includes(newThread.id)) return; // return if the newThread is not in threads-list.json. optional chaining in case an error occurs and threads = undefined
-        if (newThread.archived) {
-            await newThread.setArchived(false, 'keeping the thread alive').catch(errorHandler);
-        }
-        if (newThread.autoArchiveDuration < 1440) {
-            await newThread.setAutoArchiveDuration(1440, 'Longer auto archiving results in less usage of the bot\'s resources').catch(errorHandler);
-        }
+        await reviveThread(newThread);
     });
 };
 
